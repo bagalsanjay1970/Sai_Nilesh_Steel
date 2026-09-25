@@ -15,21 +15,38 @@ const Palkhis = () => {
   const [activeCategory, setActiveCategory] = useState(searchParams.get('category') || 'all');
 
   useEffect(() => {
-    const fetchData = async () => {
+    let isMounted = true;
+    const fetchData = async (isRetry = false) => {
       try {
         const [palkhisData, categoriesData] = await Promise.all([
           getPalkhis(),
           getCategories()
         ]);
-        setPalkhis(palkhisData);
-        setCategories(categoriesData);
+        if (isMounted) {
+          if (palkhisData && palkhisData.length > 0) {
+            setPalkhis(palkhisData);
+          } else if (!isRetry) {
+            // Cold-start retry after 1.2s if initial attempt returned empty
+            setTimeout(() => {
+              if (isMounted) fetchData(true);
+            }, 1200);
+          } else {
+            setPalkhis(palkhisData || []);
+          }
+          if (categoriesData && categoriesData.length > 0) {
+            setCategories(categoriesData);
+          }
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
-        setLoading(false);
+        if (isMounted && !isRetry) {
+          setLoading(false);
+        }
       }
     };
     fetchData();
+    return () => { isMounted = false; };
   }, []);
 
   useEffect(() => {

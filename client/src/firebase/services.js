@@ -71,25 +71,14 @@ const STORAGE_KEYS = {
   DELETED_CUSTOM_REQUESTS: 'sns_deleted_custom_request_ids'
 };
 
-// Automatic one-time purge of old dummy data
-const DUMMY_PURGE_FLAG = 'sns_purged_all_dummy_data_v1';
-if (typeof window !== 'undefined') {
-  try {
-    if (!localStorage.getItem(DUMMY_PURGE_FLAG)) {
-      localStorage.removeItem(STORAGE_KEYS.PALKHIS);
-      localStorage.removeItem(STORAGE_KEYS.CATEGORIES);
-      localStorage.removeItem(STORAGE_KEYS.GALLERY);
-      localStorage.removeItem(STORAGE_KEYS.INQUIRIES);
-      localStorage.removeItem(STORAGE_KEYS.CUSTOM_REQUESTS);
-      localStorage.removeItem(STORAGE_KEYS.DELETED_PALKHIS);
-      localStorage.removeItem(STORAGE_KEYS.DELETED_CATEGORIES);
-      localStorage.removeItem(STORAGE_KEYS.DELETED_GALLERY);
-      localStorage.removeItem(STORAGE_KEYS.DELETED_INQUIRIES);
-      localStorage.removeItem(STORAGE_KEYS.DELETED_CUSTOM_REQUESTS);
-      localStorage.setItem(DUMMY_PURGE_FLAG, 'true');
-    }
-  } catch (e) {}
-}
+// Helper to safely parse dates/timestamps
+const parseTime = (val) => {
+  if (!val) return 0;
+  if (val.seconds) return val.seconds * 1000;
+  if (typeof val.toDate === 'function') return val.toDate().getTime();
+  const t = new Date(val).getTime();
+  return isNaN(t) ? 0 : t;
+};
 
 export const clearAllDummyData = () => {
   if (typeof window !== 'undefined') {
@@ -163,28 +152,54 @@ export const getPalkhis = async (filters = {}) => {
   const deletedIds = getDeletedIds(STORAGE_KEYS.DELETED_PALKHIS);
   if (isFirebaseConfigured()) {
     try {
-      let q = collection(db, 'palkhis');
-      const constraints = [where('enabled', '==', true)];
+      let snapshot = null;
 
-      if (filters.category && filters.category !== 'all') {
-        constraints.push(where('category', '==', filters.category));
+      // 1. Try querying enabled palkhis without composite orderBy (avoids index requirement)
+      try {
+        const q = query(collection(db, 'palkhis'), where('enabled', '==', true));
+        snapshot = await getDocs(q);
+      } catch (qErr) {
+        console.warn('Firestore enabled query notice, trying raw collection:', qErr.message);
       }
-      if (filters.featured) {
-        constraints.push(where('featured', '==', true));
+
+      // 2. Fallback to raw collection fetch if query returned empty or failed
+      if (!snapshot || snapshot.empty) {
+        try {
+          snapshot = await getDocs(collection(db, 'palkhis'));
+        } catch (rawErr) {
+          console.warn('Firestore raw collection notice:', rawErr.message);
+        }
       }
 
-      constraints.push(orderBy('createdAt', 'desc'));
+      if (snapshot && !snapshot.empty) {
+        let list = snapshot.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(p => !deletedIds.has(String(p.id)) && p.enabled !== false);
 
-      q = query(q, ...constraints);
-      const snapshot = await getDocs(q);
-      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !deletedIds.has(String(p.id)));
-      if (list.length > 0) return list;
+        // Sort descending by createdAt in memory
+        list.sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt));
+
+        // Always cache live Firestore data to localStorage so cold-starts/offline sessions are populated
+        if (list.length > 0) {
+          setLocalData(STORAGE_KEYS.PALKHIS, list);
+        }
+
+        // Apply filters in memory
+        if (filters.featured) {
+          list = list.filter(p => Boolean(p.featured));
+        }
+        if (filters.category && filters.category !== 'all') {
+          list = list.filter(p => p.category?.toLowerCase() === filters.category.toLowerCase());
+        }
+
+        return list;
+      }
     } catch (error) {
       console.warn('Firestore getPalkhis error, falling back to local store:', error.message);
     }
   }
 
-  // Local fallback
+  // Local fallback (populated from previous fetch, admin edits, or defaults)
   const all = getLocalData(STORAGE_KEYS.PALKHIS, samplePalkhis).filter(p => !deletedIds.has(String(p.id)));
   return all.filter(p => {
     if (p.enabled === false) return false;
@@ -198,10 +213,19 @@ export const getAllPalkhis = async () => {
   const deletedIds = getDeletedIds(STORAGE_KEYS.DELETED_PALKHIS);
   if (isFirebaseConfigured()) {
     try {
-      const q = query(collection(db, 'palkhis'), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
-      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !deletedIds.has(String(p.id)));
-      if (list.length > 0) return list;
+      const snapshot = await getDocs(collection(db, 'palkhis'));
+      if (snapshot && !snapshot.empty) {
+        let list = snapshot.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(p => !deletedIds.has(String(p.id)));
+
+        list.sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt));
+
+        if (list.length > 0) {
+          setLocalData(STORAGE_KEYS.PALKHIS, list);
+        }
+        return list;
+      }
     } catch (error) {
       console.warn('Firestore getAllPalkhis error, falling back to local store:', error.message);
     }
@@ -339,15 +363,40 @@ export const getCategories = async (enabledOnly = true) => {
   const deletedIds = getDeletedIds(STORAGE_KEYS.DELETED_CATEGORIES);
   if (isFirebaseConfigured()) {
     try {
-      let q;
-      if (enabledOnly) {
-        q = query(collection(db, 'categories'), where('enabled', '==', true), orderBy('order', 'asc'));
-      } else {
-        q = query(collection(db, 'categories'), orderBy('order', 'asc'));
+      let snapshot = null;
+      try {
+        if (enabledOnly) {
+          const q = query(collection(db, 'categories'), where('enabled', '==', true));
+          snapshot = await getDocs(q);
+        } else {
+          snapshot = await getDocs(collection(db, 'categories'));
+        }
+      } catch (qErr) {
+        snapshot = await getDocs(collection(db, 'categories'));
       }
-      const snapshot = await getDocs(q);
-      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !deletedIds.has(String(c.id)));
-      if (list.length > 0) return list;
+
+      if (!snapshot || snapshot.empty) {
+        try {
+          snapshot = await getDocs(collection(db, 'categories'));
+        } catch (rawErr) {}
+      }
+
+      if (snapshot && !snapshot.empty) {
+        let list = snapshot.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(c => !deletedIds.has(String(c.id)));
+
+        if (enabledOnly) {
+          list = list.filter(c => c.enabled !== false);
+        }
+
+        list.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+
+        if (list.length > 0) {
+          setLocalData(STORAGE_KEYS.CATEGORIES, list);
+        }
+        return list;
+      }
     } catch (error) {
       console.warn('Firestore getCategories error, falling back to local store:', error.message);
     }
@@ -453,15 +502,21 @@ export const deleteCategory = async (id) => {
 export const getGalleryItems = async (category = 'all') => {
   if (isFirebaseConfigured()) {
     try {
-      let q;
-      if (category && category !== 'all') {
-        q = query(collection(db, 'gallery'), where('category', '==', category), orderBy('createdAt', 'desc'));
-      } else {
-        q = query(collection(db, 'gallery'), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(collection(db, 'gallery'));
+      if (snapshot && !snapshot.empty) {
+        let list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        list.sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt));
+
+        if (list.length > 0) {
+          setLocalData(STORAGE_KEYS.GALLERY, list);
+        }
+
+        if (category && category !== 'all') {
+          return list.filter(g => g.category?.toLowerCase() === category.toLowerCase());
+        }
+        return list;
       }
-      const snapshot = await getDocs(q);
-      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      if (list.length > 0) return list;
     } catch (error) {
       console.warn('Firestore getGalleryItems error, falling back to local store:', error.message);
     }
