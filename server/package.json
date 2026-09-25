@@ -1,0 +1,20 @@
+{
+  "name": "sai-nilesh-steel-server",
+  "version": "1.0.0",
+  "description": "Backend server for Sai Nilesh Steel Palkhi application",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "firebase-admin": "^12.0.0",
+    "multer": "^1.4.5-lts.1",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5"
+  }
+}

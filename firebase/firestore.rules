@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+    
+    // Palkhis - Public read for enabled, admin write
+    match /palkhis/{palkhiId} {
+      allow read: if resource.data.enabled == true || isAuth();
+      allow create, update, delete: if isAuth();
+    }
+    
+    // Categories - Public read for enabled, admin write
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAuth();
+    }
+    
+    // Gallery - Public read, admin write
+    match /gallery/{itemId} {
+      allow read: if true;
+      allow create, update, delete: if isAuth();
+    }
+    
+    // Inquiries - Public create, admin read/update/delete
+    match /inquiries/{inquiryId} {
+      allow create: if true;
+      allow read, update, delete: if isAuth();
+    }
+    
+    // Custom Requests - Public create, admin read/update/delete
+    match /customRequests/{requestId} {
+      allow create: if true;
+      allow read, update, delete: if isAuth();
+    }
+    
+    // Settings - Public read, admin write
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAuth();
+    }
+  }
+}

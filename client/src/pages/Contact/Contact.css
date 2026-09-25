@@ -1,0 +1,152 @@
+.contact-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3xl);
+  margin-bottom: var(--space-3xl);
+}
+
+.contact-info-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: var(--space-xs);
+}
+
+.contact-info-subtitle {
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: var(--space-2xl);
+  font-family: var(--font-accent);
+}
+
+.contact-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-bottom: var(--space-2xl);
+}
+
+.contact-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-light);
+  transition: all var(--transition-fast);
+}
+
+.contact-card.clickable:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-glow);
+  transform: translateX(4px);
+}
+
+.contact-card.whatsapp-card:hover {
+  border-color: var(--color-whatsapp);
+  background: rgba(37, 211, 102, 0.1);
+}
+
+.contact-card-icon {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary-glow);
+  color: var(--color-primary);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.contact-card-icon.whatsapp {
+  background: rgba(37, 211, 102, 0.15);
+  color: var(--color-whatsapp);
+}
+
+.contact-card-label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: var(--font-accent);
+}
+
+.contact-card-value {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-top: 2px;
+}
+
+.contact-quick-actions {
+  display: flex;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+/* Form */
+.contact-form-wrapper {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  padding: var(--space-2xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border-light);
+}
+
+.contact-form-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: var(--space-xs);
+}
+
+.contact-form-subtitle {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: var(--space-xl);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.contact-map {
+  margin-top: var(--space-2xl);
+}
+
+.map-embed {
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+@media (max-width: 900px) {
+  .contact-layout {
+    grid-template-columns: 1fr;
+    gap: var(--space-2xl);
+  }
+}
+
+@media (max-width: 600px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-quick-actions {
+    flex-direction: column;
+  }
+
+  .contact-quick-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

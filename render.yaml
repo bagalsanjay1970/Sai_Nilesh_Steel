@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: sai-nilesh-steel-api
+    env: node
+    plan: free
+    region: singapore
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_URL
+        sync: false # Set to your Vercel frontend URL e.g. https://sai-nilesh-steel.vercel.app
+      - key: FIREBASE_STORAGE_BUCKET
+        value: sai-nilesh-steel-palkhi-bd002.firebasestorage.app
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false # Paste your serviceAccountKey.json content as a one-line JSON string if desired
